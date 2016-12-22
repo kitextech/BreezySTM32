@@ -1,5 +1,5 @@
 /*
-   mpu6050.c : driver for Invensense MPU6050
+   mpu6500.c : driver for Invensense MPU6500
 
    Adapted from https://github.com/multiwii/baseflight/blob/master/src/drv_mpu.c
 
@@ -27,13 +27,10 @@
 #ifndef M_PI
     #define M_PI 3.14159265358979323846
 #endif
-// #define _USE_MATH_DEFINES
-// #include <cmath>
-
 /* Generic driver for invensense gyro/acc devices.
  *
  * Supported hardware:
- * MPU6050 (gyro + acc)
+ * MPU6500 (gyro + acc)
  *
  * AUX_I2C is enabled on devices which have bypass, to allow forwarding to compass in MPU9150-style devices
  */
@@ -51,7 +48,7 @@
 #define MPU_RA_XA_OFFS_H                    (0x06)    //[15:0] XA_OFFS
 #define MPU_RA_PRODUCT_ID                   (0x0C)    // Product ID Register
 
-// WHO_AM_I register contents for 6050
+// WHO_AM_I register contents for 6500
 #define MPUx0x0_WHO_AM_I_CONST              (0x68)
 
 enum lpf_e {
@@ -108,11 +105,11 @@ static uint8_t mpuLowPassFilter = INV_FILTER_42HZ;
 #define MPU_RA_FIFO_COUNT_H     0x72
 #define MPU_RA_FIFO_R_W         0x74
 
-// MPU6050 bits
-#define MPU6050_INV_CLK_GYROZ   0x03
-#define MPU6050_BIT_FIFO_RST    0x04
-#define MPU6050_BIT_DMP_RST     0x08
-#define MPU6050_BIT_FIFO_EN     0x40
+// MPU6500 bits
+#define MPU6500_INV_CLK_GYROZ   0x03
+#define MPU6500_BIT_FIFO_RST    0x04
+#define MPU6500_BIT_DMP_RST     0x08
+#define MPU6500_BIT_FIFO_EN     0x40
 
 void (*mpuInterruptCallbackPtr)(void) = NULL;
 
@@ -128,7 +125,7 @@ static bool mpuWriteRegisterI2C(uint8_t reg, uint8_t data)
 
 // XXX we should figure out how to make interrupts with with F3 as well
 #ifdef STM32F10X_MD
-void mpu6050_exti_init(int boardVersion)
+void mpu6500_exti_init(int boardVersion)
 {
     // enable AFIO for EXTI support
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
@@ -186,11 +183,11 @@ void EXTI15_10_IRQHandler(void)
 
 
 // ======================================================================
-void mpu6050_init(bool enableInterrupt, uint16_t * acc1G, float * gyroScale, int boardVersion)
+void mpu6500_init(bool enableInterrupt, uint16_t * acc1G, float * gyroScale, int boardVersion)
 {
     gpio_config_t gpio;
 
-    // Set acc1G. Modified once by mpu6050CheckRevision for old (hopefully nonexistent outside of clones) parts
+    // Set acc1G. Modified once by mpu6500CheckRevision for old (hopefully nonexistent outside of clones) parts
     *acc1G = 512 * 8;
 
     uint8_t rev;
@@ -238,7 +235,7 @@ void mpu6050_init(bool enableInterrupt, uint16_t * acc1G, float * gyroScale, int
         } else {
             gpioInit(GPIOB, &gpio);
         }
-        //mpu6050_exti_init(boardVersion);
+        mpu6500_exti_init(boardVersion);
     }
 
     // Device reset
@@ -247,7 +244,7 @@ void mpu6050_init(bool enableInterrupt, uint16_t * acc1G, float * gyroScale, int
 
     // Gyro config
     mpuWriteRegisterI2C(MPU_RA_SMPLRT_DIV, 0x00); // Sample Rate = Gyroscope Output Rate / (1 + SMPLRT_DIV)
-    mpuWriteRegisterI2C(MPU_RA_PWR_MGMT_1, MPU6050_INV_CLK_GYROZ); // Clock source = 3 (PLL with Z Gyro reference)
+    mpuWriteRegisterI2C(MPU_RA_PWR_MGMT_1, MPU6500_INV_CLK_GYROZ); // Clock source = 3 (PLL with Z Gyro reference)
     delay(10);
     mpuWriteRegisterI2C(MPU_RA_CONFIG, mpuLowPassFilter); // set DLPF
     mpuWriteRegisterI2C(MPU_RA_GYRO_CONFIG, INV_FSR_2000DPS << 3); // full-scale 2kdps gyro range
@@ -261,7 +258,7 @@ void mpu6050_init(bool enableInterrupt, uint16_t * acc1G, float * gyroScale, int
 }
 
 
-void mpu6050_read_accel(int16_t *accData)
+void mpu6500_read_accel(int16_t *accData)
 {
     uint8_t buf[6];
 
@@ -273,7 +270,7 @@ void mpu6050_read_accel(int16_t *accData)
 }
 
 
-void mpu6050_read_gyro(int16_t *gyroData)
+void mpu6500_read_gyro(int16_t *gyroData)
 {
     uint8_t buf[6];
 
@@ -284,7 +281,7 @@ void mpu6050_read_gyro(int16_t *gyroData)
     gyroData[2] = (int16_t)((buf[4] << 8) | buf[5]);
 }
 
-void mpu6050_read_temperature(int16_t *tempData)
+void mpu6500_read_temperature(int16_t *tempData)
 {
     uint8_t buf[2];
 
@@ -313,7 +310,7 @@ void accel_read_CB(void)
 }
 
 #ifdef STM32F10X_MD
-void mpu6050_request_async_accel_read(int16_t *accData, volatile uint8_t *status)
+void mpu6500_request_async_accel_read(int16_t *accData, volatile uint8_t *status)
 {
     accel_data = accData;
     // Adds a new i2c job to the I2C job queue.
@@ -339,7 +336,7 @@ void gyro_read_CB(void)
     gyro_data[2] = (int16_t)((gyro_buffer[4] << 8) | gyro_buffer[5]);
 }
 
-void mpu6050_request_async_gyro_read(int16_t *gyroData, volatile uint8_t *status)
+void mpu6500_request_async_gyro_read(int16_t *gyroData, volatile uint8_t *status)
 {
     gyro_data = gyroData;
     i2c_queue_job(READ,
@@ -360,7 +357,7 @@ void temp_read_CB(void)
     LED0_OFF;
 }
 
-void mpu6050_request_async_temp_read(volatile int16_t *tempData, volatile uint8_t *status)
+void mpu6500_request_async_temp_read(volatile int16_t *tempData, volatile uint8_t *status)
 {
     temp_data = tempData;
     i2c_queue_job(READ,
@@ -376,9 +373,9 @@ void mpu6050_request_async_temp_read(volatile int16_t *tempData, volatile uint8_
 /*=======================================================
  * Custom ISR Registration
  * This method registers a custom interrpt to be
- * run upon the interrupt pin on the MPU6050 going high
+ * run upon the interrupt pin on the MPU6500 going high
  */
-void mpu6050_register_interrupt_cb(void (*functionPtr)(void))
+void mpu6500_register_interrupt_cb(void (*functionPtr)(void))
 {
     mpuInterruptCallbackPtr = functionPtr;
 }

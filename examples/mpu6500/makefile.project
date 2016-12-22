@@ -1,0 +1,8 @@
+PROJECT_NAME = multisense
+
+# Contains your setup() and loop()
+PROJECT_SRC_FILE  = mpu6500read.c
+
+# Drivers, etc.
+PROJECT_BREEZY_FILES = $(BREEZY_DIR)/i2c_stm32f$(ARCH)0x.c \
+                       $(BREEZY_DIR)/drivers/mpu6500.c
